@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import { getMe } from '../controllers/users.controller';
+import { getMe, searchUsers } from '../controllers/users.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 
 const router = Router();
 
 router.get('/me', authMiddleware, getMe);
+router.get('/search', authMiddleware, searchUsers);
 
 export default router;

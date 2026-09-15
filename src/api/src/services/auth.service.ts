@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
 import { RegisterInput, LoginInput } from '../validators/auth.validator';
 
@@ -11,7 +11,8 @@ if (!JWT_SECRET) {
 }
 
 function generateToken(userId: number) {
-  return jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  const options: SignOptions = { expiresIn: JWT_EXPIRES_IN } as SignOptions;
+  return jwt.sign({ sub: userId }, JWT_SECRET, options);
 }
 
 export async function registerUser(data: RegisterInput) {

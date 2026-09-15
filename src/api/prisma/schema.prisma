@@ -7,6 +7,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum SupportStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+
+  @@map("support_status")
+}
+
 model User {
   id           Int      @id @default(autoincrement())
   name         String
@@ -15,5 +23,22 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  requestedRelationships SupportRelationship[] @relation("Requester")
+  supportedRelationships SupportRelationship[] @relation("Supporter")
+
   @@map("users")
+}
+
+model SupportRelationship {
+  id          Int          @id @default(autoincrement())
+  requesterId Int
+  supporterId Int
+  status      SupportStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  requester User @relation("Requester", fields: [requesterId], references: [id])
+  supporter User @relation("Supporter", fields: [supporterId], references: [id])
+
+  @@map("support_relationships")
 }
