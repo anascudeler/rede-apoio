@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "react-native-keyevent": "^0.3.2"
+  }
+}
