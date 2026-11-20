@@ -4,8 +4,7 @@
     "slug": "safekey",
     "plugins": [
       ["expo-location", { "locationAlwaysAndWhenInUsePermission": "O SafeKey usa sua localização para avisar sua rede de apoio em caso de alerta." }],
-      ["expo-image-picker", { "photosPermission": "Escolher a foto do seu perfil." }],
-      ["react-native-ble-plx", { "bluetoothAlwaysPermission": "Conectar ao chaveiro SafeKey." }]
+      ["expo-image-picker", { "photosPermission": "Escolher a foto do seu perfil." }]
     ],
     "android": {
       "permissions": ["ACCESS_FINE_LOCATION", "BLUETOOTH_SCAN", "BLUETOOTH_CONNECT"]
