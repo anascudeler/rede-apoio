@@ -1,0 +1,3 @@
+minimumReleaseAgeExclude:
+  - expo-image-picker@57.0.22
+  - expo-location@57.0.24

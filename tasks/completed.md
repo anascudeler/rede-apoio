@@ -2,9 +2,8 @@
 
 ## TASK-001 — Backend básico (Fase 1)
 
-**Status:** Implementado. Aguardando validação manual do desenvolvedor (`npm install` + migrations +
-teste dos endpoints não puderam ser executados no ambiente onde o código foi gerado — ver
-`memory/problems.md`).
+**Status:** Código implementado. A validação manual do desenvolvedor continua pendente; não há
+evidência registrada de execução bem-sucedida dos endpoints.
 
 **Escopo entregue:**
 
@@ -20,3 +19,8 @@ teste dos endpoints não puderam ser executados no ambiente onde o código foi g
 
 **Referências:** `spec/use-cases/uc-01-cadastro-login.md`, `decisions/ADR-001.md`,
 `decisions/ADR-002.md`.
+
+## Observação de status
+
+Este arquivo registra escopo de implementação, não certifica validação em ambiente real. A
+compilação e o fluxo de cadastro/login devem ser confirmados conforme `tasks/current.md`.

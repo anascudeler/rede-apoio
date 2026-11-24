@@ -2,7 +2,8 @@
 
 ## Status
 
-Implementado (Fase 1). Fonte de verdade do schema: `src/api/prisma/schema.prisma`.
+Model e autenticação implementados no código da API TypeScript (Fase 1); a validação ponta a ponta
+continua pendente. Fonte de verdade do schema: `src/api/prisma/schema.prisma`.
 
 ## Entidade
 
@@ -27,12 +28,13 @@ updatedAt     DateTime
 
 ## Relacionamentos
 
+Relacionamentos já implementados na API TypeScript:
+
 ```text
-User 1 ──── N Device
-User 1 ──── N EmergencyAlert
 User 1 ──── N SupportRelationship (como requester)
 User 1 ──── N SupportRelationship (como supporter)
 ```
 
-Ver `spec/domains/support-relationship.md`, `spec/domains/emergency-alert.md` e
-`spec/domains/device.md`.
+`Device` e `EmergencyAlert` continuam sendo entidades planejadas; ainda não existem no schema
+Prisma da API TypeScript. Ver `spec/domains/support-relationship.md`,
+`spec/domains/emergency-alert.md` e `spec/domains/device.md`.

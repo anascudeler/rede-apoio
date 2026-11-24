@@ -9,7 +9,7 @@ Banco:    MySQL
 Auth:     JWT
 Hash:     bcryptjs
 Validação: Zod
-Mobile:   React Native + React Native Paper + React Navigation + TypeScript (não iniciado)
+Mobile:   React Native + React Native Paper + React Navigation + TypeScript (stack planejado)
 ```
 
 Ver `decisions/ADR-001.md` para o porquê da escolha desta stack de backend.
@@ -50,8 +50,21 @@ src/
 │   │   └── types/
 │   └── prisma/
 │       └── schema.prisma
-└── mobile/                 ← app React Native (ainda não iniciado)
+└── mobile/                 ← app Expo/React Native iniciado em JavaScript
 ```
+
+## Estado da implementação
+
+- A API TypeScript contém rotas de autenticação, perfil, busca de usuários e rede de apoio. Seu
+  schema de referência é `src/api/prisma/schema.prisma`.
+- `src/api/server.js` e `src/api/schema.sql` pertencem a um protótipo legado, com contrato e modelo
+  de dados diferentes. Não os use como especificação da API TypeScript.
+- `src/mobile/` já contém um app Expo em JavaScript com telas de login, cadastro, início, listas e
+  perfil. Ainda não usa TypeScript nem React Native Paper e consome endpoints do protótipo
+  (`/me`, `/apoiando`, `/apoiado`, `/vinculos`, `/alerta`, `/locations`), portanto não está
+  integrado às rotas atuais da API TypeScript.
+- O código das Fases 1 e 2 está presente no backend, mas a validação local dos fluxos continua
+  pendente. Consulte `tasks/current.md` e `memory/problems.md`.
 
 ## Autenticação
 
@@ -62,8 +75,8 @@ API valida email/senha
   ↓
 Gera JWT
   ↓
-Mobile armazena token (de forma segura — não em AsyncStorage puro; ver ADR quando o mobile
-  começar a ser implementado)
+Mobile armazena token (o app atual usa SecureStore em nativo e localStorage na web; o padrão final
+  precisa ser decidido/registrado antes de considerar a integração concluída)
   ↓
 Requests posteriores enviam: Authorization: Bearer <token>
 ```
@@ -109,5 +122,5 @@ POST   /devices
 DELETE /devices/:id
 ```
 
-Nem todas essas rotas existem ainda — o que está implementado de fato está registrado em
-`memory/project-state.md`.
+Nem todas essas rotas existem ainda. Em particular, alertas e dispositivos não estão implementados
+na API TypeScript; o estado detalhado está em `memory/project-state.md`.

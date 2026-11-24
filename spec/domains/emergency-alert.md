@@ -2,7 +2,9 @@
 
 ## Status
 
-Ainda não implementado. Planejado para a Fase 4 (após a rede de apoio estar funcionando).
+Ainda não implementado na API TypeScript. Planejado para a Fase 4 (após a rede de apoio estar
+funcionando). O protótipo legado tem um fluxo de alerta próprio, mas não corresponde a esta entidade
+nem está integrado à API atual.
 
 ## Conceito
 

@@ -26,9 +26,17 @@ Siga esta sequência, nesta ordem:
 5. Leia `memory/pending.md` e `memory/problems.md` — pode haver contexto relevante sobre tentativas
    anteriores ou bloqueios conhecidos.
 6. Só então analise o código em `src/` relacionado ao domínio da tarefa.
+7. Diferencie sempre código existente de comportamento validado: uma rota ou tela no repositório
+   não comprova que o fluxo funciona em execução.
 
 Não carregue o projeto inteiro para uma tarefa pequena. Busque o **contexto mínimo necessário**
 (domínio afetado, não o sistema inteiro).
+
+Para entender a implementação atual, considere `src/api/src/` e
+`src/api/prisma/schema.prisma` como a API TypeScript principal. `src/api/server.js` e
+`src/api/schema.sql` pertencem a um protótipo legado e não descrevem o contrato da API atual.
+O app em `src/mobile/` existe, mas ainda usa contratos do protótipo em vários fluxos; não presuma
+que está integrado à API TypeScript.
 
 ## 3. Escopo
 
@@ -77,6 +85,9 @@ Uma tarefa só é considerada concluída quando:
 - os testes relevantes passam (ou a limitação foi registrada em `memory/problems.md`);
 - a documentação afetada foi atualizada (`spec/`, `decisions/` se houve decisão nova).
 
+Não marque uma fase como validada apenas porque o código foi escrito ou compila. Registre
+separadamente implementação, validação automatizada e validação manual.
+
 ## 8. Ao final de cada sessão de trabalho
 
 1. Atualize `memory/project-state.md` com o que mudou.
@@ -96,7 +107,7 @@ Uma tarefa só é considerada concluída quando:
 
 ```text
 Backend:  Node.js + Express + TypeScript + Prisma + MySQL + JWT + bcryptjs + Zod
-Mobile:   React Native + React Native Paper + React Navigation + TypeScript (ainda não iniciado)
+Mobile:   App Expo/React Native existente em JavaScript; TypeScript e React Native Paper seguem como stack planejado
 ```
 
 Não trocar tecnologias sem um novo ADR aprovado pelo desenvolvedor.

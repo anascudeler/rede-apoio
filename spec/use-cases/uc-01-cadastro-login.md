@@ -2,7 +2,8 @@
 
 ## Status
 
-Implementado (Fase 1).
+Implementado no código da API TypeScript (Fase 1); a validação local ponta a ponta ainda está
+pendente.
 
 ## Ator
 

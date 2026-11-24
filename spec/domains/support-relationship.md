@@ -2,7 +2,8 @@
 
 ## Status
 
-Ainda não implementado. Planejado para a Fase 2 (ver `tasks/current.md` / `tasks/backlog.md`).
+Implementado no schema Prisma, migrations, rotas e service da API TypeScript (Fase 2). A validação
+dos critérios de aceite em execução continua pendente; veja `tasks/current.md`.
 
 ## Conceito
 
@@ -37,6 +38,10 @@ updatedAt     DateTime
 
 `status` é modelado como enum com espaço para evoluir (`BLOCKED` é um valor futuro considerado no
 produto, mas não implementado no MVP — ver `spec/product/overview.md`).
+
+O service verifica solicitações `PENDING` existentes antes de criar outra. O banco não possui
+índice único por par; a proteção contra solicitações pendentes duplicadas ainda precisa ser
+validada, inclusive sob requisições concorrentes.
 
 ## Regras de negócio
 

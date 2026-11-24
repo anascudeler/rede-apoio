@@ -1,47 +1,35 @@
-# TASK-002 — Modelar e implementar SupportRelationship (Fase 2)
+# Validação local das Fases 1 e 2
 
 ## Status
 
-Not Started — bloqueada até a validação manual da Fase 1 (ver `memory/pending.md`).
+O banco MySQL local foi provisionado, as quatro migrations estão aplicadas, e um cadastro de smoke
+pela API mobile passou. O build TypeScript também passou. Ainda faltam validação manual de login,
+perfil, rede de apoio e dos critérios da TASK-002 (detalhes em `memory/problems.md`).
 
-## Objetivo
+## Próximos passos
 
-Implementar o relacionamento de rede de apoio entre usuários: solicitar, aceitar, recusar, listar e
-remover.
+1. Validar manualmente login e perfil pela API TypeScript.
+2. Validar o fluxo de rede de apoio com dois usuários e os critérios da TASK-002.
+3. Testar o cadastro pelo navegador do Codespaces com a porta 3001 encaminhada.
+4. Registrar cada resultado em `memory/` e só então atualizar o status das fases.
 
-## Referências obrigatórias antes de implementar
+## Código da Fase 2 já presente
 
-- `spec/domains/support-relationship.md`
-- `spec/business-rules/support-relationship-rules.md`
-- `spec/business-rules/authorization.md`
-- `spec/use-cases/uc-02-solicitar-apoio.md`
-- `spec/use-cases/uc-03-aceitar-recusar.md`
-- `decisions/ADR-001.md` (padrão de camadas a seguir)
+- Model `SupportRelationship` e migrations no Prisma.
+- Solicitar, aceitar, recusar, listar e remover relações por rotas protegidas.
+- Busca autenticada por e-mail em `GET /users/search?email=...`.
 
-## Escopo desta tarefa
+## Critérios de validação pendentes
 
-1. Model `SupportRelationship` no `schema.prisma`, com `requesterId` e `supporterId` referenciando
-   `User` através de relações nomeadas (evitar ambiguidade de FK dupla).
-2. Migration correspondente.
-3. `support.validator.ts` (Zod) para o corpo de `POST /support/request`.
-4. `support.service.ts`: `requestSupport`, `acceptSupport`, `rejectSupport`, `listSupport`,
-   `removeSupport` — regra de negócio e autorização (BR-AUTH-01, BR-AUTH-02, BR-SR-02, BR-SR-04)
-   ficam aqui, não no controller.
-5. `support.controller.ts` + `support.routes.ts`, todas as rotas protegidas por `authMiddleware`.
-6. `GET /users/search?email=...` (necessário para o fluxo de solicitar apoio).
+- Uma solicitação `PENDING` duplicada no mesmo sentido deve ser rejeitada.
+- Apenas o `supporterId` deve aceitar/recusar e somente enquanto a relação estiver `PENDING`.
+- `GET /support` deve retornar ambas as direções com seus status.
+- Remoção deve respeitar BR-AUTH-02.
+- `GET /users/search` deve exigir autenticação e retornar somente dados mínimos.
+- O fluxo Maria → João deve funcionar com dois usuários reais no banco local.
 
-## Critérios de aceite
+## Próxima integração mobile
 
-- Não é possível criar uma segunda `PENDING` entre o mesmo par requester/supporter.
-- Só o `supporterId` consegue aceitar/recusar a própria solicitação (tentar como outro usuário
-  retorna 403).
-- Só é possível aceitar/recusar uma relação que esteja em `PENDING`.
-- `GET /support` retorna corretamente as duas direções (Apoiando / Apoiado por) com o status de
-  cada relação.
-- Teste manual replicando o fluxo Maria → João do critério de sucesso do MVP (ver
-  `spec/use-cases/uc-04-acionar-alerta.md`, passos 1–2, já que o alerta em si ainda não existe).
-
-## Fora do escopo
-
-- Notificação de "nova solicitação" via push (não faz parte desta tarefa).
-- Qualquer coisa relacionada a `EmergencyAlert` ou `Device`.
+O app em `src/mobile/` usa atualmente `src/api/server.js`, uma API mobile separada da API
+TypeScript descrita acima. O cadastro foi smoke-testado localmente; não considerar a Fase 3
+integrada à API TypeScript até alinhar os contratos.

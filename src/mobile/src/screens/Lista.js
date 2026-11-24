@@ -1,74 +1,114 @@
-import { useState, useCallback } from 'react';
-import { View, Text, FlatList, Linking, Pressable } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api';
-import { Botao, Campo, Avatar, Erro } from '../components';
-import { cor } from '../theme';
+import { Avatar, Botao, Campo, fmtData } from '../components';
+import { cores } from '../theme';
 
-export default function Lista({ route, navigation }) {
-  const { tipo } = route.params;
-  const [itens, setItens] = useState([]);
-  const [form, setForm] = useState(false);
+export default function ListaScreen({ route }) {
+  const ajudo = route.params.modo === 'ajudo';
+  const [links, setLinks] = useState([]);
+  const [reg, setReg] = useState([]);
   const [email, setEmail] = useState('');
-  const [erro, setErro] = useState('');
+  const [mensagemAdicao, setMensagemAdicao] = useState(null);
+  const [adicionando, setAdicionando] = useState(false);
 
-  const carregar = useCallback(async () => setItens(await api('/' + tipo)), [tipo]);
+  const carregar = useCallback(async () => {
+    try {
+      const [l, a] = await Promise.all([
+        api('/links?tipo=' + (ajudo ? 'ajudo' : 'ajudam')),
+        api('/alerts?tipo=' + (ajudo ? 'recebidos' : 'enviados')),
+      ]);
+      setLinks(l);
+      setReg(a);
+    } catch {}
+  }, [ajudo]);
+
+  // atualiza ao abrir a tela e a cada 10 s (para ver pedidos novos)
   useFocusEffect(useCallback(() => {
-    carregar().catch(() => {});
-    const t = setInterval(() => carregar().catch(() => {}), 5000); // atualiza o status
+    carregar();
+    const t = setInterval(carregar, 10000);
     return () => clearInterval(t);
   }, [carregar]));
 
   async function adicionar() {
+    const emailAdicionado = email.trim();
+    if (!emailAdicionado || adicionando) return;
+
+    setAdicionando(true);
+    setMensagemAdicao(null);
     try {
-      await api('/vinculos', 'POST', { email, tipo });
-      setEmail(''); setErro(''); setForm(false); carregar();
-    } catch (e) { setErro(e.message); }
+      await api('/links', { method: 'POST', body: { email: emailAdicionado, tipo: ajudo ? 'ajudo' : 'ajudam' } });
+      setEmail('');
+      setMensagemAdicao({ tipo: 'sucesso', texto: 'Amigo adicionado à sua lista.' });
+      await carregar();
+    } catch (e) {
+      setMensagemAdicao({ tipo: 'erro', texto: e.message });
+    } finally {
+      setAdicionando(false);
+    }
   }
 
+  async function remover(id) {
+    await api('/links/' + id, { method: 'DELETE' });
+    carregar();
+  }
+
+  const card = { backgroundColor: cores.card, borderRadius: 14, paddingHorizontal: 14, borderWidth: 1.5, borderColor: cores.linha };
+  const vazio = (t) => <Text style={{ color: cores.suave, paddingVertical: 14 }}>{t}</Text>;
+
   return (
-    <View style={{ flex: 1, backgroundColor: cor.bg, padding: 20, paddingTop: 60 }}>
-      <Pressable onPress={() => navigation.goBack()}><Text style={{ color: cor.pri, fontWeight: '600' }}>‹ Início</Text></Pressable>
-      <Text style={{ fontSize: 26, fontWeight: '800', color: cor.ink, marginTop: 8 }}>
-        {tipo === 'apoiando' ? 'Apoiando' : 'Apoiado'}
-      </Text>
-      <Text style={{ color: cor.mut, marginBottom: 16 }}>
-        {tipo === 'apoiando' ? 'Pessoas que você está acompanhando.' : 'Pessoas que acompanham você.'}
+    <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+      <Text style={{ color: cores.suave, marginBottom: 12 }}>
+        {ajudo ? 'Amigos que podem pedir ajuda a você.' : 'Amigos que você pode acionar com o botão Ajuda.'}
       </Text>
 
-      <FlatList
-        data={itens}
-        keyExtractor={(i) => String(i.id)}
-        ListEmptyComponent={<Text style={{ color: cor.mut, textAlign: 'center', padding: 24 }}>Ninguém por aqui ainda. Toque em “Adicionar pessoa”.</Text>}
-        renderItem={({ item }) => {
-          const alerta = item.status === 'alerta';
-          return (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: cor.card, borderWidth: 1.5, borderColor: cor.line, borderRadius: 16, padding: 12, marginBottom: 10 }}>
-              <Avatar pessoa={item} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontWeight: '700', color: cor.ink }}>{item.nome}</Text>
-                {alerta && item.ultima_loc && (
-                  <Text style={{ color: cor.pri, fontSize: 13 }}
-                    onPress={() => Linking.openURL(`https://www.google.com/maps?q=${item.ultima_loc}`)}>
-                    Ver localização no mapa
-                  </Text>)}
-              </View>
-              <Text style={{ fontWeight: '700', fontSize: 12, paddingVertical: 5, paddingHorizontal: 11, borderRadius: 99,
-                backgroundColor: alerta ? cor.albg : cor.okbg, color: alerta ? cor.al : cor.ok, overflow: 'hidden' }}>
-                {alerta ? 'Em alerta' : 'Sem alerta'}
-              </Text>
+      <View style={card}>
+        {links.length === 0 && vazio('Ninguém por aqui ainda. Adicione um amigo pelo e-mail.')}
+        {links.map((l) => (
+          <View key={l.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: cores.linha }}>
+            <Avatar foto={l.pessoa.foto} nome={l.pessoa.nome} tam={38} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontWeight: '700', color: cores.tinta }}>{l.pessoa.nome}</Text>
+              <Text style={{ color: cores.suave, fontSize: 13 }}>{l.pessoa.telefone}</Text>
             </View>
-          );
-        }}
-      />
+            <Pressable onPress={() => remover(l.id)} accessibilityLabel={'Remover ' + l.pessoa.nome}>
+              <Text style={{ fontSize: 22, color: cores.suave }}>×</Text>
+            </Pressable>
+          </View>
+        ))}
+      </View>
 
-      {form ? (
-        <View>
-          <Campo rotulo="E-mail da pessoa" value={email} onChangeText={setEmail} keyboardType="email-address" />
-          <Erro texto={erro} />
-          <Botao titulo="Adicionar" onPress={adicionar} />
-        </View>
-      ) : <Botao titulo="Adicionar pessoa" ghost onPress={() => setForm(true)} />}
-    </View>
+      <View style={{ marginTop: 14 }}>
+        <Campo label="Adicionar amigo pelo e-mail" value={email} onChangeText={setEmail} keyboardType="email-address" placeholder="amiga@email.com" />
+        <Botao
+          titulo={adicionando ? 'Adicionando...' : 'Adicionar'}
+          onPress={adicionar}
+          disabled={adicionando || !email.trim().includes('@')}
+        />
+        {mensagemAdicao && (
+          <Text style={{ color: mensagemAdicao.tipo === 'erro' ? cores.vermelho : cores.verde, marginTop: 8 }}>
+            {mensagemAdicao.texto}
+          </Text>
+        )}
+      </View>
+
+      <Text style={{ fontWeight: '800', color: cores.tinta, marginTop: 24, marginBottom: 8 }}>
+        {ajudo ? 'Pedidos de ajuda recebidos' : 'Pedidos de ajuda enviados'}
+      </Text>
+      <View style={card}>
+        {reg.length === 0 && vazio(ajudo ? 'Você ainda não recebeu pedidos.' : 'Você ainda não pediu ajuda.')}
+        {reg.map((a) => (
+          <View key={a.id} style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: cores.linha }}>
+            <Text style={{ fontWeight: '700', color: ajudo ? cores.vermelho : cores.tinta }}>
+              {ajudo ? `${a.pessoa.nome} pediu ajuda` : `Alerta enviado a ${a.pessoa.nome}`}
+            </Text>
+            <Text style={{ color: cores.suave, fontSize: 13 }}>
+              {fmtData(a.criadoEm)}{a.lat != null ? `  ·  ${a.lat.toFixed(4)}, ${a.lng.toFixed(4)}` : ''}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </ScrollView>
   );
 }

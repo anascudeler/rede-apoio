@@ -20,25 +20,58 @@ model User {
   name         String
   email        String   @unique
   passwordHash String
+  telefone     String   @default("")
+  foto         String?  @db.MediumText
+  lat          Float?
+  lng          Float?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   requestedRelationships SupportRelationship[] @relation("Requester")
   supportedRelationships SupportRelationship[] @relation("Supporter")
+  requestedLinks          Link[]                @relation("LinkRequester")
+  supportedLinks          Link[]                @relation("LinkHelper")
+  sentAlerts              Alert[]               @relation("Sender")
+  receivedAlerts          Alert[]               @relation("Recipient")
 
   @@map("users")
 }
 
 model SupportRelationship {
-  id          Int          @id @default(autoincrement())
+  id          Int           @id @default(autoincrement())
   requesterId Int
   supporterId Int
   status      SupportStatus @default(PENDING)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   requester User @relation("Requester", fields: [requesterId], references: [id])
   supporter User @relation("Supporter", fields: [supporterId], references: [id])
 
   @@map("support_relationships")
+}
+
+// helper ajuda requester (requester pode pedir ajuda ao helper)
+model Link {
+  id          Int  @id @default(autoincrement())
+  requesterId Int
+  helperId    Int
+  requester   User @relation("LinkRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  helper      User @relation("LinkHelper", fields: [helperId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, helperId])
+  @@map("links")
+}
+
+model Alert {
+  id          Int      @id @default(autoincrement())
+  senderId    Int
+  recipientId Int
+  lat         Float?
+  lng         Float?
+  createdAt   DateTime @default(now())
+  sender      User     @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient   User     @relation("Recipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@map("alerts")
 }

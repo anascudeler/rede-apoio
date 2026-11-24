@@ -1,26 +1,24 @@
 # Backlog
 
-Tarefas ainda não iniciadas, em ordem de fase (ver `decisions/ADR-003.md`). Não iniciar uma tarefa
-daqui sem antes movê-la para `tasks/current.md` e confirmar o escopo.
+Tarefas ainda não iniciadas ou parcialmente implementadas, em ordem de fase (ver
+`decisions/ADR-003.md`). Não iniciar uma tarefa daqui sem antes movê-la para `tasks/current.md` e
+confirmar o escopo. A validação das Fases 1 e 2 está em `tasks/current.md`.
 
 ## Fase 2 — Rede de apoio
 
-- TASK-002: Modelar `SupportRelationship` no Prisma (com nomes de relação explícitos para as duas
-  FKs de `User`) e migrar.
-- TASK-003: Implementar `POST /support/request` (criar solicitação `PENDING`).
-- TASK-004: Implementar `PATCH /support/:id/accept` e `PATCH /support/:id/reject`.
-- TASK-005: Implementar `GET /support` (listar "Apoiando" e "Apoiado por" com status).
-- TASK-006: Implementar `DELETE /support/:id`.
-- TASK-007: Implementar `GET /users/search?email=...`.
+O escopo de TASK-002 a TASK-007 já está presente no código da API TypeScript. A validação manual e
+a verificação dos critérios de aceite permanecem pendentes; não recriar essas tarefas como se o
+código ainda não existisse.
 
 ## Fase 3 — Aplicativo mobile
 
-- TASK-008: Inicializar projeto React Native + React Native Paper + React Navigation em
-  `src/mobile`.
-- TASK-009: Telas de Login e Cadastro, integradas a `POST /auth/login` e `POST /auth/register`.
-- TASK-010: Contexto de autenticação (`AuthContext`) + armazenamento seguro do token.
-- TASK-011: Tela Home com contadores de "Apoiando" / "Apoiado por".
-- TASK-012: Telas "Apoiando" e "Apoiado por", integradas às rotas de `/support`.
+- TASK-008: Alinhar/completar o app Expo existente ao stack acordado e à API TypeScript. O app atual
+  é JavaScript, não usa React Native Paper e consome rotas do protótipo legado.
+- TASK-009: Corrigir e validar Login/Cadastro com os contratos `password` e `POST /auth/*` da API.
+- TASK-010: Unificar o estado de autenticação; SecureStore está implementado em nativo, mas a web
+  usa `localStorage` e ainda não há `AuthContext`.
+- TASK-011: Adaptar a Home existente aos endpoints atuais e validar seus contadores.
+- TASK-012: Adaptar as listas existentes às respostas e ações de `GET /support` e demais rotas.
 
 ## Fase 4 — Alerta
 

@@ -1,122 +1,155 @@
+require('dotenv').config({ path: '.env.local' });
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const mysql = require('mysql2/promise');
+const { PrismaClient } = require('@prisma/client');
 
-const db = mysql.createPool({
-  host: process.env.DB_HOST, user: process.env.DB_USER,
-  password: process.env.DB_PASS, database: process.env.DB_NAME,
-});
-
+const prisma = new PrismaClient();
 const app = express();
-app.use(cors());
-app.use(express.json({ limit: '2mb' })); // fotos em base64
+const codespaceName = process.env.CODESPACE_NAME;
+const forwardingDomain = process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN || 'app.github.dev';
 
-// ---------- autenticação ----------
-function auth(req, res, next) {
-  const token = (req.headers.authorization || '').replace('Bearer ', '');
-  try { req.userId = jwt.verify(token, process.env.JWT_SECRET).id; next(); }
-  catch { res.status(401).json({ erro: 'Sessão inválida.' }); }
+function isAllowedOrigin(origin) {
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
+  if (!codespaceName) return false;
+
+  try {
+    const url = new URL(origin);
+    const suffix = `.${forwardingDomain}`;
+    const prefix = `${codespaceName}-`;
+    return url.protocol === 'https:'
+      && url.hostname.startsWith(prefix)
+      && url.hostname.endsWith(suffix)
+      && /^\d+$/.test(url.hostname.slice(prefix.length, -suffix.length));
+  } catch {
+    return false;
+  }
 }
-const gerarToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 
-app.post('/auth/register', async (req, res) => {
-  const { nome, email, senha } = req.body;
-  if (!nome || !/^\S+@\S+\.\S+$/.test(email || '') || (senha || '').length < 6)
-    return res.status(400).json({ erro: 'Preencha nome, e-mail válido e senha com 6+ caracteres.' });
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || isAllowedOrigin(origin)) return callback(null, true);
+    return callback(null, false);
+  },
+  credentials: true,
+}));
+app.use(express.json({ limit: '5mb' }));
+
+const SECRET = process.env.JWT_SECRET || 'troque-isto';
+const pub = (u) => ({ id: u.id, nome: u.name, email: u.email, telefone: u.telefone, foto: u.foto, lat: u.lat, lng: u.lng });
+const leve = (u) => ({ id: u.id, nome: u.name, telefone: u.telefone, foto: u.foto });
+const wrap = (fn) => (req, res) =>
+  fn(req, res).catch((e) => {
+    if (e.code === 'P2002') return res.status(409).json({ erro: 'Este e-mail já está cadastrado.' });
+    console.error(e);
+    res.status(500).json({ erro: 'Erro interno do servidor.' });
+  });
+
+function auth(req, res, next) {
+  const t = (req.headers.authorization || '').replace('Bearer ', '');
   try {
-    const hash = await bcrypt.hash(senha, 10);
-    const [r] = await db.query(
-      'INSERT INTO Usuario (nome, email, senha) VALUES (?, ?, ?)',
-      [nome.trim(), email.trim().toLowerCase(), hash]);
-    res.json({ token: gerarToken(r.insertId) });
-  } catch (e) {
-    if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ erro: 'Este e-mail já tem cadastro.' });
-    res.status(500).json({ erro: 'Erro ao cadastrar.' });
+    req.uid = jwt.verify(t, SECRET).uid;
+    next();
+  } catch {
+    res.status(401).json({ erro: 'Sessão inválida. Entre novamente.' });
   }
-});
+}
+const token = (u) => jwt.sign({ uid: u.id }, SECRET, { expiresIn: '30d' });
 
-app.post('/auth/login', async (req, res) => {
-  const { email, senha } = req.body;
-  const [[u]] = await db.query('SELECT id, senha FROM Usuario WHERE email = ?', [(email || '').toLowerCase()]);
-  if (!u || !(await bcrypt.compare(senha || '', u.senha)))
+// ---------- Auth ----------
+app.post('/auth/register', wrap(async (req, res) => {
+  const { nome, email, senha, telefone } = req.body;
+  if (!nome || !email || !senha || senha.length < 6 || !telefone)
+    return res.status(400).json({ erro: 'Dados incompletos.' });
+  const u = await prisma.user.create({
+    data: { name: nome.trim(), email: email.trim().toLowerCase(), telefone: telefone.trim(), passwordHash: await bcrypt.hash(senha, 10) },
+  });
+  res.json({ token: token(u), user: pub(u) });
+}));
+
+app.post('/auth/login', wrap(async (req, res) => {
+  const u = await prisma.user.findUnique({ where: { email: (req.body.email || '').trim().toLowerCase() } });
+  if (!u || !(await bcrypt.compare(req.body.senha || '', u.passwordHash)))
     return res.status(401).json({ erro: 'E-mail ou senha incorretos.' });
-  res.json({ token: gerarToken(u.id) });
-});
+  res.json({ token: token(u), user: pub(u) });
+}));
 
-// ---------- perfil ----------
-app.get('/me', auth, async (req, res) => {
-  const [[u]] = await db.query('SELECT id, nome, email, idade, foto FROM Usuario WHERE id = ?', [req.userId]);
-  res.json(u);
-});
+// ---------- Perfil ----------
+app.get('/me', auth, wrap(async (req, res) => {
+  res.json(pub(await prisma.user.findUnique({ where: { id: req.uid } })));
+}));
 
-app.put('/me', auth, async (req, res) => {
-  const { nome, idade, foto } = req.body;
-  if (!nome) return res.status(400).json({ erro: 'Informe o nome completo.' });
-  await db.query('UPDATE Usuario SET nome = ?, idade = ?, foto = ? WHERE id = ?',
-    [nome, idade || null, foto || null, req.userId]);
-  res.json({ ok: true });
-});
-
-// ---------- localização em tempo real ----------
-app.post('/locations', auth, async (req, res) => {
-  const { lat, lng } = req.body;
-  if (typeof lat !== 'number' || typeof lng !== 'number') return res.status(400).json({ erro: 'Coordenadas inválidas.' });
-  await db.query('INSERT INTO Localizacao (fk_Usuario_id, lat, lng) VALUES (?, ?, ?)', [req.userId, lat, lng]);
-  res.json({ ok: true });
-});
-
-// ---------- listas ----------
-const ULTIMA_LOC = `(SELECT CONCAT(l.lat, ',', l.lng) FROM Localizacao l
-                     WHERE l.fk_Usuario_id = u.id ORDER BY l.date_time DESC LIMIT 1)`;
-
-// Apoiando: pessoas que EU acompanho (eu sou "quem_me_ve")
-app.get('/apoiando', auth, async (req, res) => {
-  const [rows] = await db.query(
-    `SELECT u.id, u.nome, u.foto, a.status, ${ULTIMA_LOC} AS ultima_loc
-       FROM Assistir a JOIN Usuario u ON u.id = a.fk_Usuario_id_eu
-      WHERE a.fk_Usuario_id_quem_me_ve = ?`, [req.userId]);
-  res.json(rows);
-});
-
-// Apoiado: pessoas que me acompanham (eu sou "eu")
-app.get('/apoiado', auth, async (req, res) => {
-  const [rows] = await db.query(
-    `SELECT u.id, u.nome, u.foto, a.status
-       FROM Assistir a JOIN Usuario u ON u.id = a.fk_Usuario_id_quem_me_ve
-      WHERE a.fk_Usuario_id_eu = ?`, [req.userId]);
-  res.json(rows);
-});
-
-app.post('/vinculos', auth, async (req, res) => {
-  const { email, tipo } = req.body; // tipo: 'apoiando' | 'apoiado'
-  const [[outro]] = await db.query('SELECT id FROM Usuario WHERE email = ?', [(email || '').toLowerCase()]);
-  if (!outro) return res.status(404).json({ erro: 'Nenhuma conta com este e-mail.' });
-  if (outro.id === req.userId) return res.status(400).json({ erro: 'Você não pode adicionar a si mesma.' });
-  const [eu, qmv] = tipo === 'apoiando' ? [outro.id, req.userId] : [req.userId, outro.id];
-  try {
-    await db.query('INSERT INTO Assistir (fk_Usuario_id_eu, fk_Usuario_id_quem_me_ve) VALUES (?, ?)', [eu, qmv]);
-    res.json({ ok: true });
-  } catch (e) {
-    if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ erro: 'Esta pessoa já está na lista.' });
-    res.status(500).json({ erro: 'Erro ao adicionar.' });
+app.put('/me', auth, wrap(async (req, res) => {
+  const { nome, email, telefone, senha, foto } = req.body;
+  const data = {};
+  if (nome) data.name = nome.trim();
+  if (email) data.email = email.trim().toLowerCase();
+  if (telefone) data.telefone = telefone.trim();
+  if (foto) data.foto = foto;
+  if (senha) {
+    if (senha.length < 6) return res.status(400).json({ erro: 'A senha precisa ter ao menos 6 caracteres.' });
+    data.passwordHash = await bcrypt.hash(senha, 10);
   }
-});
+  res.json(pub(await prisma.user.update({ where: { id: req.uid }, data })));
+}));
 
-// ---------- alerta (disparado pelo botão do chaveiro) ----------
-app.post('/alerta', auth, async (req, res) => {
-  const { lat, lng } = req.body || {};
-  if (typeof lat === 'number' && typeof lng === 'number')
-    await db.query('INSERT INTO Localizacao (fk_Usuario_id, lat, lng) VALUES (?, ?, ?)', [req.userId, lat, lng]);
-  await db.query("UPDATE Assistir SET status = 'alerta' WHERE fk_Usuario_id_eu = ?", [req.userId]);
+app.put('/me/location', auth, wrap(async (req, res) => {
+  const { lat, lng } = req.body;
+  await prisma.user.update({ where: { id: req.uid }, data: { lat, lng } });
   res.json({ ok: true });
-});
+}));
 
-app.post('/alerta/cancelar', auth, async (req, res) => {
-  await db.query("UPDATE Assistir SET status = 'normal' WHERE fk_Usuario_id_eu = ?", [req.userId]);
+// ---------- Amizades ----------
+// tipo=ajudo  -> pessoas que podem pedir ajuda a mim
+// tipo=ajudam -> pessoas que me ajudam
+app.get('/links', auth, wrap(async (req, res) => {
+  if (req.query.tipo === 'ajudo') {
+    const l = await prisma.link.findMany({ where: { helperId: req.uid }, include: { requester: true }, orderBy: { id: 'desc' } });
+    return res.json(l.map((x) => ({ id: x.id, pessoa: leve(x.requester) })));
+  }
+  const l = await prisma.link.findMany({ where: { requesterId: req.uid }, include: { helper: true }, orderBy: { id: 'desc' } });
+  res.json(l.map((x) => ({ id: x.id, pessoa: leve(x.helper) })));
+}));
+
+app.post('/links', auth, wrap(async (req, res) => {
+  const outro = await prisma.user.findUnique({ where: { email: (req.body.email || '').trim().toLowerCase() } });
+  if (!outro) return res.status(404).json({ erro: 'Esse e-mail ainda não tem conta no app.' });
+  if (outro.id === req.uid) return res.status(400).json({ erro: 'Você não pode adicionar a si mesmo.' });
+  const ajudo = req.body.tipo === 'ajudo';
+  const data = ajudo ? { helperId: req.uid, requesterId: outro.id } : { requesterId: req.uid, helperId: outro.id };
+  const ja = await prisma.link.findFirst({ where: data });
+  if (ja) return res.status(409).json({ erro: 'Essa pessoa já está na lista.' });
+  await prisma.link.create({ data });
   res.json({ ok: true });
-});
+}));
 
-app.listen(process.env.PORT, () => console.log('API SafeKey na porta ' + process.env.PORT));
+app.delete('/links/:id', auth, wrap(async (req, res) => {
+  await prisma.link.deleteMany({
+    where: { id: Number(req.params.id), OR: [{ requesterId: req.uid }, { helperId: req.uid }] },
+  });
+  res.json({ ok: true });
+}));
+
+// ---------- Alertas ----------
+app.post('/alerts', auth, wrap(async (req, res) => {
+  const { lat, lng } = req.body;
+  const ajudantes = await prisma.link.findMany({ where: { requesterId: req.uid } });
+  if (lat != null) await prisma.user.update({ where: { id: req.uid }, data: { lat, lng } });
+  await prisma.alert.createMany({
+    data: ajudantes.map((l) => ({ senderId: req.uid, recipientId: l.helperId, lat: lat ?? null, lng: lng ?? null })),
+  });
+  res.json({ enviados: ajudantes.length });
+}));
+
+app.get('/alerts', auth, wrap(async (req, res) => {
+  if (req.query.tipo === 'recebidos') {
+    const a = await prisma.alert.findMany({ where: { recipientId: req.uid }, include: { sender: true }, orderBy: { createdAt: 'desc' }, take: 100 });
+    return res.json(a.map((x) => ({ id: x.id, pessoa: leve(x.sender), criadoEm: x.createdAt, lat: x.lat, lng: x.lng })));
+  }
+  const a = await prisma.alert.findMany({ where: { senderId: req.uid }, include: { recipient: true }, orderBy: { createdAt: 'desc' }, take: 100 });
+  res.json(a.map((x) => ({ id: x.id, pessoa: leve(x.recipient), criadoEm: x.createdAt, lat: x.lat, lng: x.lng })));
+}));
+
+app.listen(process.env.PORT || 3000, () => console.log('API rodando na porta ' + (process.env.PORT || 3000)));

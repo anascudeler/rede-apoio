@@ -1,35 +1,49 @@
-import { View, Text, TextInput, Pressable, Image, StyleSheet } from 'react-native';
-import { cor } from './theme';
+import React from 'react';
+import { Image, Pressable, Text, TextInput, View } from 'react-native';
+import { cores } from './theme';
 
-export const Botao = ({ titulo, onPress, ghost }) => (
-  <Pressable onPress={onPress} style={[s.btn, ghost && s.ghost]}>
-    <Text style={[s.btnTxt, ghost && { color: cor.pri }]}>{titulo}</Text>
-  </Pressable>
-);
+export function Campo({ label, ...props }) {
+  return (
+    <View style={{ marginBottom: 14 }}>
+      <Text style={{ color: cores.tinta, fontWeight: '600', marginBottom: 6 }}>{label}</Text>
+      <TextInput
+        placeholderTextColor={cores.suave}
+        autoCapitalize="none"
+        style={{ backgroundColor: '#fffafc', borderWidth: 1.5, borderColor: cores.linha, borderRadius: 10, padding: 12, fontSize: 16, color: cores.tinta }}
+        {...props}
+      />
+    </View>
+  );
+}
 
-export const Campo = ({ rotulo, ...props }) => (
-  <View style={{ marginTop: 14 }}>
-    <Text style={s.rot}>{rotulo}</Text>
-    <TextInput style={s.input} placeholderTextColor={cor.mut} autoCapitalize="none" {...props} />
-  </View>
-);
+export function Botao({ titulo, onPress, tipo = 'primario', disabled, style }) {
+  const sec = tipo === 'secundario';
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={[
+        { padding: 14, borderRadius: 12, alignItems: 'center', opacity: disabled ? 0.6 : 1,
+          backgroundColor: sec ? 'transparent' : cores.rosa, borderWidth: sec ? 1.5 : 0, borderColor: cores.linha },
+        style,
+      ]}
+    >
+      <Text style={{ color: sec ? cores.tinta : '#fff', fontWeight: '800', fontSize: 16 }}>{titulo}</Text>
+    </Pressable>
+  );
+}
 
-export const Avatar = ({ pessoa, tamanho = 44 }) => (
-  <View style={[s.av, { width: tamanho, height: tamanho, borderRadius: tamanho / 2 }]}>
-    {pessoa?.foto
-      ? <Image source={{ uri: pessoa.foto }} style={{ width: tamanho, height: tamanho }} />
-      : <Text style={{ fontWeight: '800', fontSize: tamanho / 2.4 }}>{(pessoa?.nome || '?')[0].toUpperCase()}</Text>}
-  </View>
-);
+export function Avatar({ foto, nome = '?', tam = 40 }) {
+  const base = { width: tam, height: tam, borderRadius: tam / 2, backgroundColor: cores.linha, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' };
+  return (
+    <View style={base}>
+      {foto ? (
+        <Image source={{ uri: foto }} style={{ width: tam, height: tam }} />
+      ) : (
+        <Text style={{ fontWeight: '800', color: cores.suave, fontSize: tam / 2.4 }}>{nome.trim().charAt(0).toUpperCase()}</Text>
+      )}
+    </View>
+  );
+}
 
-export const Erro = ({ texto }) => <Text style={s.erro}>{texto}</Text>;
-
-const s = StyleSheet.create({
-  btn: { backgroundColor: cor.pri, padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 18 },
-  ghost: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: cor.pri },
-  btnTxt: { color: '#fff', fontWeight: '600', fontSize: 16 },
-  rot: { fontWeight: '600', marginBottom: 6, color: cor.ink },
-  input: { borderWidth: 1.5, borderColor: cor.line, borderRadius: 12, padding: 13, backgroundColor: cor.card, color: cor.ink, fontSize: 16 },
-  av: { backgroundColor: cor.line, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  erro: { color: cor.al, fontWeight: '600', marginTop: 10 },
-});
+export const fmtData = (d) => new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });

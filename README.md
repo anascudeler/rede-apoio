@@ -8,13 +8,15 @@ apoio; em uma emergência, ele aciona um alerta e todas essas pessoas são notif
 
 ## Status atual
 
-**Fase 1 concluída** (cadastro, login, JWT). **Fase 2 (rede de apoio) é a próxima**, mas está
-bloqueada até a Fase 1 ser validada localmente — veja `tasks/current.md` e `memory/pending.md`.
+O backend TypeScript contém código para as Fases 1 e 2. O schema MySQL foi migrado no banco local e
+o cadastro foi smoke-testado; os demais fluxos ainda precisam de validação. O app Expo em
+JavaScript usa a API mobile `src/api/server.js` (separada da API TypeScript). Veja
+`tasks/current.md` e `memory/pending.md`.
 
 ```text
-[x] Fase 1 — Backend básico (User, auth)
-[ ] Fase 2 — Rede de apoio (SupportRelationship)
-[ ] Fase 3 — Aplicativo mobile
+[x] Fase 1 — Backend básico; migrations aplicadas e cadastro smoke-testado
+[~] Fase 2 — Código da rede de apoio; critérios ainda precisam de validação
+[~] Fase 3 — App integrado à API mobile legada; integração com a API TypeScript pendente
 [ ] Fase 4 — Alerta via botão no app
 [ ] Fase 5 — Push notification real
 [ ] Fase 6 — Localização no alerta
@@ -27,7 +29,7 @@ Detalhe de cada fase em `spec/architecture/overview.md`.
 
 ```text
 Backend:   Node.js + Express + TypeScript + Prisma + MySQL + JWT + bcryptjs + Zod
-Mobile:    React Native + React Native Paper + React Navigation + TypeScript (não iniciado)
+Mobile:    App Expo/React Native existente em JavaScript; stack TypeScript/Paper planejado
 ```
 
 ## Como este projeto está organizado
@@ -42,7 +44,7 @@ de IA (Claude, Copilot Agent, etc.) além de humanos. Cada pasta responde a uma 
 | [`decisions/`](./decisions) | Por que as decisões técnicas foram tomadas (ADRs) |
 | [`tasks/`](./tasks) | O que está sendo feito agora, o que falta, o que já foi concluído |
 | [`memory/`](./memory) | O que aconteceu durante o desenvolvimento (estado, problemas, pendências, sessões) |
-| [`src/`](./src) | O código: `src/api` (backend) e `src/mobile` (app, ainda não iniciado) |
+| [`src/`](./src) | O código: `src/api` (backend) e `src/mobile` (app Expo iniciado, integração pendente) |
 | [`tests/`](./tests) | O que foi comprovado que funciona |
 
 **Se você (humano ou agente) for continuar o desenvolvimento, comece por `AI.md`.** Ele descreve o
@@ -52,15 +54,24 @@ processo a seguir antes de tocar em qualquer código.
 
 ```bash
 cd src/api
-npm install
-cp .env.example .env   # edite DATABASE_URL com seu MySQL local
-npm run prisma:migrate -- --name init
-npm run dev
+pnpm install --frozen-lockfile
+# consulte .env.example para as variáveis necessárias; não sobrescreva um .env existente
+pnpm run prisma:generate
+pnpm run prisma:migrate
+pnpm run dev
 ```
 
 Servidor sobe em `http://localhost:3333` (ou na porta definida em `PORT` no `.env`).
+`src/api/.env` aparece versionado neste repositório; revise isso antes de adicionar credenciais
+reais. Veja `memory/pending.md`.
+O schema Prisma e as migrations em `src/api/prisma/` são a fonte de verdade da API TypeScript.
+`src/api/server.js` oferece as rotas usadas pelo app mobile e lê `.env.local` antes de `.env`.
+Use `pnpm run dev:mobile-api` para iniciá-lo. No Codespaces, a API mobile usa a porta encaminhada
+3001; o app detecta a porta e envia credenciais do navegador. Em desenvolvimento local, o padrão é
+a porta 3000. Mantenha a porta privada, exceto durante teste autorizado e temporário.
+`src/api/schema.sql` continua sendo um protótipo legado; o schema atual é `src/api/prisma/schema.prisma`.
 
-### Testando os endpoints da Fase 1
+### Endpoints implementados no backend TypeScript
 
 ```bash
 curl -X POST http://localhost:3333/auth/register \
@@ -73,7 +84,14 @@ curl -X POST http://localhost:3333/auth/login \
 
 curl http://localhost:3333/users/me \
   -H "Authorization: Bearer <token retornado no login>"
+
+curl http://localhost:3333/support \
+  -H "Authorization: Bearer <token retornado no login>"
 ```
+
+Esses comandos descrevem um roteiro; os fluxos ainda não estão registrados como validados. O app
+mobile usa atualmente outra base de URL, endpoints e nomes de campos. Não há testes automatizados
+implementados; consulte `tests/README.md`.
 
 ## Princípios do projeto
 

@@ -2,8 +2,20 @@
 
 ## Status atual
 
-Ainda não há testes automatizados no projeto. A Fase 1 foi validada apenas manualmente (curl,
-descrito em `tasks/completed.md`).
+Ainda não há testes automatizados do projeto. O script `test` do app mobile é apenas um placeholder
+que termina com erro. A validação manual completa das Fases 1 e 2 continua pendente.
+
+Validações executadas em 2026-11-24:
+
+- `pnpm run build` em `src/api`: passou após gerar explicitamente o Prisma Client.
+- `prisma validate --schema prisma/schema.prisma`: passou usando uma `DATABASE_URL` fictícia; não
+  conectou a um banco nem validou migrations em execução.
+- As quatro migrations MySQL foram aplicadas e `prisma migrate status` reportou o schema atualizado.
+- Cadastro via `src/api/server.js` + MySQL local passou (HTTP 200); o usuário descartável foi removido.
+- Preflight CORS da origem Codespaces foi verificado (HTTP 204). A chamada pelo navegador ainda
+  precisa ser confirmada na sessão do desenvolvedor.
+
+Consulte `memory/problems.md` para o bloqueio restante de validação ponta a ponta.
 
 ## Estratégia planejada
 

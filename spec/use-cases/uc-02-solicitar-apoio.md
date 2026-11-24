@@ -2,7 +2,8 @@
 
 ## Status
 
-Não implementado. Planejado para a Fase 2.
+Implementado no código da API TypeScript (Fase 2); a validação local ponta a ponta ainda está
+pendente.
 
 ## Ator
 

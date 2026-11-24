@@ -2,7 +2,8 @@
 
 ## Status
 
-Não implementado. Planejado para a Fase 4 (Fase 5 adiciona o envio de push de fato).
+Não implementado na API TypeScript. Planejado para a Fase 4 (Fase 5 adiciona o envio de push de
+fato). O app/protótipo legado tem um fluxo diferente que ainda não está integrado.
 
 ## Ator
 
